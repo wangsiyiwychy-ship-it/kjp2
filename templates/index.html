@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抗菌谱查询系统</title>
+    <!-- 引入Bootstrap CSS -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 引入Font Awesome图标 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入Chart.js用于数据可视化 -->
+
+    <style>
+        /* 自定义样式 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card {
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+        }
+        .search-container {
+            position: relative;
+        }
+        .search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            position: absolute;
+            width: 100%;
+        }
+        .result-item {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .result-item:hover {
+            background-color: #f8f9fa;
+        }
+        .badge {
+            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+        }
+        /* 标签样式 */
+        .selected-tag {
+            background-color: #6c757d;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 16px;
+            margin: 0.25rem;
+            display: inline-flex;
+            align-items: center;
+        }
+        .selected-tag .remove-tag {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        /* 多选下拉菜单样式 */
+        select[multiple] {
+            height: 120px;
+            overflow-y: auto;
+        }
+        /* 状态标签样式 */
+        .status-recommend {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-active {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .status-uncertain {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .status-not-recommend {
+            background-color: #dc3545;
+            color: white;
+        }
+        .status-unknown {
+            background-color: #6c757d;
+            color: white;
+        }
+        /* 加载动画 */
+        .loader {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #667eea;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 统计卡片样式 */
+        .stat-card {
+            border-left: 4px solid #667eea;
+        }
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 1.5rem 0;
+            }
+            .card {
+                margin-bottom: 1rem;
+            }
+        }
+        
+        /* 比较功能相关样式 */
+        .compare-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .compare-section h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .remove-tag {
+            margin-left: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #2196f3;
+        }
+        
+        .remove-tag:hover {
+            color: #d32f2f;
+        }
+        
+        .selected-items-container {
+            min-height: 30px;
+            padding: 10px 0;
+        }
+        
+        /* 表格样式增强 */
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .result-table th, .result-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .result-table th {
+            background-color: #e9ecef;
+            font-weight: 600;
+        }
+        
+        .result-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .result-table tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        /* 选择下拉框增强 */
+        .custom-select {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            border: 1px solid #ced4da;
+        }
+        
+        .custom-select:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        
+        /* 按钮组样式 */
+        .btn-group {
+            margin-top: 10px;
+        }
+        
+        /* 比较结果区域 */
+        .compare-results {
+            margin-top: 20px;
+        }
+        
+        .compare-results h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="header">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 text-center">
+                    <h1 class="display-4 mb-3"><i class="fa fa-flask mr-2"></i>抗菌谱查询系统</h1>
+                    <p class="lead">基于《53版热病》抗菌谱数据，快速查询细菌与药物敏感性</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="container mt-5 mb-8">
+
+
+        <!-- 搜索区域 -->
+        <div class="row mb-6">
+            <div class="col-md-12">
+                <div class="card p-5">
+                    <h2 class="text-center mb-4">搜索功能</h2>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="search-type" class="form-label">搜索类型</label>
+                            <select id="search-type" class="form-select form-select-lg">
+                                <option value="bacteria">按细菌名称搜索</option>
+                                <option value="drug">按药物名称搜索</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="search-input" class="form-label">搜索内容</label>
+                            <div class="search-container">
+                                <input type="text" id="search-input" class="form-control form-control-lg" placeholder="输入细菌或药物名称...">
+                                <div id="search-results" class="search-results list-group d-none"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <button id="search-btn" class="btn btn-primary btn-lg px-6 py-2 mt-3">
+                            <i class="fa fa-search mr-2"></i>搜索
+                        </button>
+                        <button id="clear-btn" class="btn btn-secondary btn-lg px-6 py-2 mt-3 ml-2">
+                            <i class="fa fa-refresh mr-2"></i>清空
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 比较功能区域 -->
+        <div class="row mb-6">
+            <div class="col-md-12">
+                <div class="card p-5 bg-light">
+                    <h2 class="text-center mb-4"><i class="fa fa-exchange mr-2"></i>比较功能</h2>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="compare-type" class="form-label">比较类型</label>
+                            <select id="compare-type" class="form-select form-select-lg">
+                                <option value="bacteria">比较细菌</option>
+                                <option value="drug">比较药物</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="compare-input" class="form-label">输入项目名称 (回车添加，支持自动完成)</label>
+                            <div class="search-container">
+                                <input type="text" id="compare-input" class="form-control form-control-lg" placeholder="输入要比较的项目...">
+                                <div id="compare-suggestions" class="search-results list-group d-none"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <label class="form-label">已选项目:</label>
+                            <div id="selected-items" class="flex-wrap d-flex gap-2 p-2 border rounded">
+                                <span class="text-muted">暂无选中项目</span>
+                            </div>
+                            <small class="form-text text-muted">提示：输入名称并按回车添加项目，至少选择2个项目才能进行比较</small>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button id="compare-btn" class="btn btn-info btn-lg px-6 py-2" disabled>
+                            <i class="fa fa-bar-chart mr-2"></i>比较
+                        </button>
+                        <button id="clear-compare-btn" class="btn btn-secondary btn-lg px-6 py-2 ml-2">
+                            <i class="fa fa-remove mr-2"></i>清空选择
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果显示区域 -->
+    <div id="results-container" class="mt-6">
+        <!-- 加载指示器 -->
+        <div id="loading-indicator" class="d-none text-center py-5">
+            <div class="loader mx-auto mb-3"></div>
+            <p>正在查询数据，请稍候...</p>
+        </div>
+
+        <!-- 搜索结果 -->
+        <div id="search-results-content" class="d-none">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 id="result-title" class="mb-0"><i class="fa fa-search-plus mr-2"></i>搜索结果</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr id="result-table-header">
+                                    <!-- 动态生成表头 -->
+                                </tr>
+                            </thead>
+                            <tbody id="result-table-body">
+                                <!-- 动态生成表格内容 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 比较结果 -->
+        <div id="compare-results-content" class="d-none">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h3 id="compare-result-title" class="mb-0"><i class="fa fa-exchange mr-2"></i>比较结果</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr id="compare-table-header">
+                                    <!-- 动态生成表头 -->
+                                </tr>
+                            </thead>
+                            <tbody id="compare-table-body">
+                                <!-- 动态生成表格内容 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 无结果提示 -->
+        <div id="no-results" class="d-none text-center py-8">
+            <div class="alert alert-warning" role="alert">
+                <h4 class="alert-heading"><i class="fa fa-exclamation-triangle mr-2"></i>未找到匹配结果</h4>
+                <p>请尝试使用不同的搜索关键词或检查拼写是否正确。</p>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p class="mb-1">抗菌谱查询系统 - 基于《53版热病》数据</p>
+            <p class="text-muted text-sm">仅供医疗专业人员参考使用</p>
+        </div>
+    </footer>
+
+    <!-- 引入Bootstrap和jQuery脚本 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    
+    <!-- 主JavaScript逻辑 -->
+    <script>
+        // 全局变量
+        let bacteriaList = [];
+        let drugList = [];
+        let activityChart = null;
+        let pieChart = null;
+        
+        // 全局变量定义
+        let selectedBacteria = [];
+        let selectedDrugs = [];
+        
+        // 页面加载完成后执行
+        $(document).ready(function() {
+            // 加载数据列表
+            loadLists();
+            
+            // 绑定搜索按钮事件
+            $('#search-btn').click(performSearch);
+            $('#search-input').keypress(function(e) {
+                if (e.which === 13) { // 回车键
+                    performSearch();
+                }
+            });
+            
+            // 绑定清空按钮事件
+            $('#clear-btn').click(clearResults);
+            
+            // 绑定搜索类型切换事件
+            $('#search-type').change(function() {
+                $('#search-input').val('');
+                clearResults();
+            });
+            
+            // 绑定搜索输入自动完成
+            $('#search-input').keyup(function() {
+                showAutoComplete();
+            });
+            
+            // 点击页面其他区域关闭自动完成列表
+            $(document).click(function(e) {
+                if (!$(e.target).closest('.search-container').length) {
+                    $('#search-results').addClass('d-none');
+                }
+            });
+            
+            // 比较功能相关事件绑定
+            // 绑定比较类型切换事件
+            $('#compare-type').change(function() {
+                $('#compare-input').val('');
+                clearSelectedItems();
+            });
+            
+            // 绑定比较输入自动完成
+            $('#compare-input').keyup(function(e) {
+                if (e.which !== 13) { // 非回车键时显示自动完成建议
+                    showCompareSuggestions();
+                }
+            });
+            
+            // 专门处理回车键，确保可靠触发添加功能
+            $('#compare-input').keypress(function(e) {
+                if (e.which === 13) { // 回车键
+                    e.preventDefault(); // 阻止默认行为
+                    addCompareItem();
+                }
+            });
+            
+            // 点击页面其他区域关闭自动完成列表
+            $(document).click(function(e) {
+                if (!$(e.target).closest('.search-container').length) {
+                    $('#compare-suggestions').addClass('d-none');
+                }
+            });
+            
+            // 绑定比较按钮点击事件
+            $('#compare-btn').click(performComparison);
+            
+            // 绑定清空比较选择按钮事件
+            $('#clear-compare-btn').click(clearSelectedItems);
+        });
+        
+        // 显示比较建议 - 优化版本
+        function showCompareSuggestions() {
+            const searchTerm = $('#compare-input').val().toLowerCase().trim();
+            const compareType = $('#compare-type').val();
+            const suggestionsContainer = $('#compare-suggestions');
+            
+            // 清空并隐藏建议容器
+            suggestionsContainer.empty().addClass('d-none');
+            
+            // 调试信息
+            console.log('===== 自动完成调试 =====');
+            console.log('搜索词:', searchTerm);
+            console.log('比较类型:', compareType);
+            
+            if (searchTerm.length < 1) {
+                console.log('搜索词长度不足，不显示建议');
+                return;
+            }
+            
+            // 安全地获取目标列表
+            const targetList = compareType === 'bacteria' ? bacteriaList : drugList;
+            console.log('使用的列表长度:', targetList.length);
+            
+            // 确保列表存在且有效
+            if (!targetList || !Array.isArray(targetList) || targetList.length === 0) {
+                console.warn('目标列表不存在或为空');
+                return;
+            }
+            
+            // 使用更安全的过滤方法
+            let filteredList = [];
+            try {
+                // 先尝试快速过滤
+                filteredList = targetList.filter(item => {
+                    if (typeof item !== 'string') {
+                        return false;
+                    }
+                    return item.toLowerCase().includes(searchTerm);
+                }).slice(0, 10);
+                
+                console.log('过滤后的结果数量:', filteredList.length);
+                
+                // 如果快速过滤没有结果，尝试更宽松的匹配策略
+                if (filteredList.length === 0 && searchTerm.length > 1) {
+                    console.log('尝试更宽松的匹配策略');
+                    // 分割搜索词并尝试匹配其中任何一个部分
+                    const searchParts = searchTerm.split(/\s+/);
+                    filteredList = targetList.filter(item => {
+                        if (typeof item !== 'string') {
+                            return false;
+                        }
+                        const itemLower = item.toLowerCase();
+                        return searchParts.some(part => itemLower.includes(part));
+                    }).slice(0, 10);
+                    console.log('宽松匹配后的结果数量:', filteredList.length);
+                }
+            } catch (error) {
+                console.error('过滤过程中发生错误:', error);
+                return;
+            }
+            
+            // 显示建议
+            if (filteredList.length > 0) {
+                filteredList.forEach(item => {
+                    const itemElement = $('<a href="#" class="list-group-item list-group-item-action result-item">')
+                        .text(item)
+                        .click(function(e) {
+                            e.preventDefault();
+                            $('#compare-input').val(item);
+                            suggestionsContainer.addClass('d-none');
+                            addCompareItem();
+                        });
+                    // 高亮搜索词
+                    if (typeof item === 'string') {
+                        const highlightedText = item.replace(
+                            new RegExp(`(${searchTerm})`, 'gi'),
+                            '<mark>$1</mark>'
+                        );
+                        itemElement.html(highlightedText);
+                    }
+                    suggestionsContainer.append(itemElement);
+                });
+                // 确保建议容器在可视区域内
+                suggestionsContainer.removeClass('d-none');
+                suggestionsContainer.css({
+                    'position': 'absolute',
+                    'z-index': 1000,
+                    'width': '100%',
+                    'max-height': '200px',
+                    'overflow-y': 'auto'
+                });
+            }
+        }
+        
+        // 添加比较项目 - 改进版本（先验证并获取实际名称）
+        function addCompareItem() {
+            const itemName = $('#compare-input').val().trim();
+            const compareType = $('#compare-type').val();
+            
+            if (!itemName) {
+                return;
+            }
+            
+            console.log('===== 比较功能调试 =====');
+            console.log('添加项目:', itemName, '类型:', compareType);
+            
+            // 先显示加载状态
+            $('#compare-input').prop('disabled', true);
+            
+            // 构建API请求URL
+            let apiUrl = '';
+            if (compareType === 'bacteria') {
+                apiUrl = `/api/search/bacteria?name=${encodeURIComponent(itemName)}`;
+            } else {
+                apiUrl = `/api/search/drug?name=${encodeURIComponent(itemName)}`;
+            }
+            
+            // 调用API验证并获取实际名称
+            $.ajax({
+                url: apiUrl,
+                type: 'GET',
+                success: function(response) {
+                    // 恢复输入框状态
+                    $('#compare-input').prop('disabled', false);
+                    
+                    if (response.success) {
+                        // 获取实际的项目名称
+                        const actualItemName = compareType === 'bacteria' ? response.bacteria : response.drug;
+                        
+                        // 检查是否已存在
+                        const existingItems = compareType === 'bacteria' ? selectedBacteria : selectedDrugs;
+                        const isDuplicate = existingItems.some(item => 
+                            item.toLowerCase() === actualItemName.toLowerCase()
+                        );
+                        
+                        if (isDuplicate) {
+                            alert('该项目已在比较列表中');
+                            return;
+                        }
+                        
+                        // 清除输入框
+                        $('#compare-input').val('');
+                        $('#compare-suggestions').addClass('d-none');
+                        
+                        // 添加到相应的数组
+                        if (compareType === 'bacteria') {
+                            selectedBacteria.push(actualItemName);
+                        } else {
+                            selectedDrugs.push(actualItemName);
+                        }
+                        
+                        // 移除"暂无选中项目"占位符
+                        $('#selected-items').find('.text-muted').remove();
+                        
+                        // 创建标签并添加到容器 - 使用更明确的样式和结构，增强文本可见性
+                        const tagElement = $('<span>').addClass('badge badge-info mr-2 mb-2 tag-item').css({
+                            'display': 'inline-block',
+                            'padding': '0.5rem 1rem',
+                            'margin': '0.25rem',
+                            'font-size': '1rem',
+                            'font-weight': 'normal',
+                            'line-height': '1.5',
+                            'white-space': 'nowrap',
+                            'vertical-align': 'middle',
+                            'cursor': 'default',
+                            'color': '#ffffff',  // 确保文本颜色为白色，与info背景形成对比
+                            'background-color': '#17a2b8',  // 明确设置info的背景色
+                            'border-radius': '0.25rem',  // 添加圆角
+                            'overflow': 'visible',  // 确保内容可见
+                            'text-overflow': 'clip',  // 不截断文本
+                            'z-index': '1'  // 确保在正确的层级
+                        });
+                        
+                        // 创建删除按钮
+                        const closeButton = $('<button type="button" class="close ml-2">').html('&times;');
+                        
+                        // 绑定删除事件
+                        closeButton.click(function() {
+                            const index = compareType === 'bacteria' 
+                                ? selectedBacteria.indexOf(actualItemName) 
+                                : selectedDrugs.indexOf(actualItemName);
+                            
+                            if (index > -1) {
+                                if (compareType === 'bacteria') {
+                                    selectedBacteria.splice(index, 1);
+                                } else {
+                                    selectedDrugs.splice(index, 1);
+                                }
+                                tagElement.remove();
+                                updateCompareButtonStatus();
+                                
+                                // 如果没有选中项目，显示占位符
+                                if (selectedBacteria.length === 0 && selectedDrugs.length === 0) {
+                                    $('#selected-items').append('<span class="text-muted">暂无选中项目</span>');
+                                }
+                            }
+                        });
+                        
+                        // 创建文本容器和按钮容器，更好地控制布局
+                        const textContainer = $('<span>').css({
+                            'margin-right': '0.5rem',
+                            'display': 'inline-block',
+                            'vertical-align': 'middle'
+                        }).text(actualItemName);
+                        
+                        // 设置关闭按钮样式
+                        closeButton.css({
+                            'display': 'inline-block',
+                            'vertical-align': 'middle',
+                            'color': '#ffffff',
+                            'opacity': '0.8',
+                            'text-shadow': 'none',
+                            'line-height': '1',
+                            'padding': '0',
+                            'margin': '0',
+                            'background': 'transparent',
+                            'border': 'none',
+                            'cursor': 'pointer',
+                            'font-size': '1.2em'
+                        });
+                        
+                        // 组装标签元素
+                        tagElement.empty().append(textContainer).append(closeButton);
+                        
+                        // 添加到容器
+                        $('#selected-items').append(tagElement);
+                        updateCompareButtonStatus();
+                    } else {
+                        alert(response.error || '未找到匹配的项目');
+                    }
+                },
+                error: function() {
+                    // 恢复输入框状态
+                    $('#compare-input').prop('disabled', false);
+                    alert('网络错误，请稍后重试');
+                }
+            });
+        }
+        
+        // 更新比较按钮状态
+        function updateCompareButtonStatus() {
+            const hasItems = selectedBacteria.length > 0 || selectedDrugs.length > 0;
+            $('#compare-btn').prop('disabled', !hasItems);
+        }
+        
+        // 清除选择的项目
+        function clearSelectedItems() {
+            selectedBacteria = [];
+            selectedDrugs = [];
+            $('#selected-items').empty();
+            $('#compare-results-content').addClass('d-none');
+            updateCompareButtonStatus();
+        }
+        
+        // 执行比较
+        function performComparison() {
+            const compareType = $('#compare-type').val();
+            // 直接使用我们维护的数组，而不是从DOM中读取标签
+            const selectedValues = compareType === 'bacteria' ? selectedBacteria : selectedDrugs;
+            
+            console.log('执行比较:', compareType, selectedValues);
+            
+            // 显示加载指示器
+            $('#loading-indicator').removeClass('d-none');
+            $('#search-results-content').addClass('d-none');
+            $('#compare-results-content').addClass('d-none');
+            $('#no-results').addClass('d-none');
+            
+            // 构建API请求URL
+            let url = '';
+            if (compareType === 'bacteria') {
+                url = `/api/compare/bacteria?${selectedValues.map(name => `name=${encodeURIComponent(name)}`).join('&')}`;
+            } else {
+                url = `/api/compare/drug?${selectedValues.map(name => `name=${encodeURIComponent(name)}`).join('&')}`;
+            }
+            
+            // 发送API请求
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    $('#loading-indicator').addClass('d-none');
+                    
+                    if (response.success) {
+                        if (compareType === 'bacteria') {
+                            displayBacteriaComparison(response.comparison_data, response.bacteria);
+                        } else {
+                            displayDrugComparison(response.comparison_data, response.drugs);
+                        }
+                    } else {
+                        $('#no-results').removeClass('d-none');
+                        alert(response.error || '比较失败');
+                    }
+                },
+                error: function() {
+                    $('#loading-indicator').addClass('d-none');
+                    $('#no-results').removeClass('d-none');
+                    console.error('比较请求失败');
+                    alert('网络错误，请稍后重试');
+                }
+            });
+        }
+        
+        // 显示细菌比较结果
+        function displayBacteriaComparison(data, bacteriaList) {
+            $('#compare-result-title').text(`细菌比较结果 (${bacteriaList.join(', ')})`);
+            
+            // 动态生成表头
+            const header = $('#compare-table-header');
+            header.empty();
+            header.append($('<th>').text('药物名称'));
+            
+            // 添加每个细菌的列
+            bacteriaList.forEach(bacteria => {
+                header.append($('<th>').text(bacteria));
+            });
+            
+            // 动态生成表格内容
+            const tbody = $('#compare-table-body');
+            tbody.empty();
+            
+            // 添加每一行数据
+            data.forEach(item => {
+                const row = $('<tr>');
+                
+                // 药物名称单元格
+                row.append($('<td>').text(item.drug));
+                
+                // 为每个细菌添加敏感性单元格
+                bacteriaList.forEach(bacteria => {
+                    const result = item.bacteria_results[bacteria] || '未知';
+                    const statusClass = getStatusClass(result);
+                    row.append($('<td>').html(`<span class="badge ${statusClass}">${result}</span>`));
+                });
+                
+                tbody.append(row);
+            });
+            
+            // 显示结果
+            $('#compare-results-content').removeClass('d-none');
+        }
+        
+        // 显示药物比较结果
+        function displayDrugComparison(data, drugList) {
+            $('#compare-result-title').text(`药物比较结果 (${drugList.join(', ')})`);
+            
+            // 动态生成表头
+            const header = $('#compare-table-header');
+            header.empty();
+            header.append($('<th>').text('细菌名称'));
+            
+            // 添加每个药物的列
+            drugList.forEach(drug => {
+                header.append($('<th>').text(drug));
+            });
+            
+            // 动态生成表格内容
+            const tbody = $('#compare-table-body');
+            tbody.empty();
+            
+            // 添加每一行数据
+            data.forEach(item => {
+                const row = $('<tr>');
+                
+                // 细菌名称单元格
+                row.append($('<td>').text(item.bacteria));
+                
+                // 为每个药物添加敏感性单元格
+                drugList.forEach(drug => {
+                    const result = item.drug_results[drug] || '未知';
+                    const statusClass = getStatusClass(result);
+                    row.append($('<td>').html(`<span class="badge ${statusClass}">${result}</span>`));
+                });
+                
+                tbody.append(row);
+            });
+            
+            // 显示结果
+            $('#compare-results-content').removeClass('d-none');
+        }
+        
+        // 加载细菌和药物列表
+        function loadLists() {
+    
+            
+            // 加载细菌列表
+            $.ajax({
+                url: '/api/bacteria',
+                type: 'GET',
+                success: function(response) {
+                    if (response && response.success) {
+                        bacteriaList = response.bacteria || [];
+                        console.log('成功加载细菌列表，共', bacteriaList.length, '个项目');
+                    } else {
+                        console.error('加载细菌列表响应格式错误');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('加载细菌列表失败:', status, error);
+                    // 重试逻辑
+                    setTimeout(function() {
+                        $.ajax({
+                            url: '/api/bacteria',
+                            type: 'GET',
+                            success: function(response) {
+                                if (response && response.success) {
+                                    bacteriaList = response.bacteria || [];
+                                    console.log('重试后成功加载细菌列表');
+                                }
+                            }
+                        });
+                    }, 1000);
+                }
+            });
+            
+            // 加载药物列表
+            $.ajax({
+                url: '/api/drugs',
+                type: 'GET',
+                success: function(response) {
+                    if (response && response.success) {
+                        drugList = response.drugs || [];
+                        console.log('成功加载药物列表，共', drugList.length, '个项目');
+                    } else {
+                        console.error('加载药物列表响应格式错误');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('加载药物列表失败:', status, error);
+                    // 重试逻辑
+                    setTimeout(function() {
+                        $.ajax({
+                            url: '/api/drugs',
+                            type: 'GET',
+                            success: function(response) {
+                                if (response && response.success) {
+                                    drugList = response.drugs || [];
+                                    console.log('重试后成功加载药物列表');
+                                }
+                            }
+                        });
+                    }, 1000);
+                }
+            });
+        }
+        
+        // 显示自动完成建议
+        function showAutoComplete() {
+            const searchTerm = $('#search-input').val().toLowerCase().trim();
+            const searchType = $('#search-type').val();
+            const resultsContainer = $('#search-results');
+            
+            resultsContainer.empty().addClass('d-none');
+            
+            if (searchTerm.length < 1) {
+                return;
+            }
+            
+            let filteredList = [];
+            
+            if (searchType === 'bacteria') {
+                filteredList = bacteriaList.filter(item => 
+                    item.toLowerCase().includes(searchTerm)
+                ).slice(0, 10);
+            } else {
+                filteredList = drugList.filter(item => 
+                    item.toLowerCase().includes(searchTerm)
+                ).slice(0, 10);
+            }
+            
+            if (filteredList.length > 0) {
+                filteredList.forEach(item => {
+                    const itemElement = $('<a href="#" class="list-group-item list-group-item-action result-item">')
+                        .text(item)
+                        .click(function(e) {
+                            e.preventDefault();
+                            $('#search-input').val(item);
+                            resultsContainer.addClass('d-none');
+                            performSearch();
+                        });
+                    resultsContainer.append(itemElement);
+                });
+                resultsContainer.removeClass('d-none');
+            }
+        }
+        
+        // 执行搜索
+        function performSearch() {
+            const searchTerm = $('#search-input').val().trim();
+            const searchType = $('#search-type').val();
+            
+            if (!searchTerm) {
+                alert('请输入搜索内容');
+                return;
+            }
+            
+            // 显示加载指示器
+            $('#loading-indicator').removeClass('d-none');
+            $('#search-results-content').addClass('d-none');
+            $('#visualization-container').addClass('d-none');
+            $('#no-results').addClass('d-none');
+            
+            // 构建API请求URL
+            let url = '';
+            if (searchType === 'bacteria') {
+                url = `/api/search/bacteria?name=${encodeURIComponent(searchTerm)}`;
+            } else {
+                url = `/api/search/drug?name=${encodeURIComponent(searchTerm)}`;
+            }
+            
+            // 发送API请求 - 使用GET方法并确保正确传递参数
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    $('#loading-indicator').addClass('d-none');
+                    
+                    if (response.success) {
+                        if (searchType === 'bacteria') {
+                            displayBacteriaResults(response.bacteria, response.antibiotics);
+                        } else {
+                            displayDrugResults(response.drug, response.bacteria_results);
+                        }
+                    } else {
+                        $('#no-results').removeClass('d-none');
+                    }
+                },
+                error: function() {
+                    $('#loading-indicator').addClass('d-none');
+                    $('#no-results').removeClass('d-none');
+                    console.error('搜索请求失败');
+                }
+            });
+        }
+        
+        // 全局变量存储药物列表（用于保持Excel中的原始顺序）
+        let globalDrugList = [];
+        
+        // 在页面加载时获取完整的药物列表
+        $(document).ready(function() {
+            // 获取完整的药物列表以保持原始顺序
+            $.ajax({
+                url: '/api/drugs',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        globalDrugList = response.drugs;
+                    }
+                }
+            });
+        });
+        
+        // 显示细菌搜索结果
+        function displayBacteriaResults(bacteriaName, antibiotics) {
+            $('#result-title').text(`细菌: ${bacteriaName} 的药物敏感性结果`);
+            
+            // 动态生成表头
+            $('#result-table-header').empty();
+            $('#result-table-header').append('<th>药物名称</th>');
+            $('#result-table-header').append('<th>敏感性</th>');
+            
+            // 动态生成表格内容
+            $('#result-table-body').empty();
+            
+            // 提取所有结果用于可视化
+            const allResults = [];
+            
+            // 严格按照Excel表格中的从左到右顺序显示药物
+            // 使用全局药物列表来确保顺序一致
+            for (let i = 0; i < globalDrugList.length; i++) {
+                const drug = globalDrugList[i];
+                // 检查当前细菌是否有该药物的敏感性数据
+                if (drug in antibiotics) {
+                    const result = antibiotics[drug];
+                    // 过滤掉空数据或未知数据
+                    if (result && result !== '未知' && result.trim() !== '') {
+                        allResults.push(result);
+                        const row = $('<tr>');
+                        
+                        // 药物名称单元格
+                        row.append($('<td>').text(drug));
+                        
+                        // 敏感性单元格
+                        const statusClass = getStatusClass(result);
+                        row.append($('<td>').html(`<span class="badge ${statusClass}">${result}</span>`));
+                        
+                        $('#result-table-body').append(row);
+                    }
+                }
+            }
+            
+            
+            // 显示结果
+            $('#search-results-content').removeClass('d-none');
+            
+            // 显示可视化图表
+            if (allResults.length > 0) {
+                displayVisualization(allResults);
+            }
+        }
+        
+        // 显示药物搜索结果
+        function displayDrugResults(drugName, bacteriaResults) {
+            $('#result-title').text(`药物: ${drugName} 对各种细菌的敏感性结果`);
+            
+            // 动态生成表头
+            $('#result-table-header').empty();
+            $('#result-table-header').append('<th>细菌名称</th>');
+            $('#result-table-header').append('<th>敏感性</th>');
+            
+            // 动态生成表格内容
+            $('#result-table-body').empty();
+            
+            // 提取所有结果用于可视化
+            const allResults = [];
+            
+            // 确保细菌结果按原始Excel顺序显示（从上到下）
+            for (let i = 0; i < bacteriaResults.length; i++) {
+                const record = bacteriaResults[i];
+                const bacteria = record.bacteria;
+                const result = record.sensitivity;
+                
+                // 过滤掉空数据或未知数据
+                if (result && result !== '未知' && result.trim() !== '') {
+                    allResults.push(result);
+                    const row = $('<tr>');
+                    
+                    // 细菌名称单元格
+                    row.append($('<td>').text(bacteria));
+                    
+                    // 敏感性单元格
+                    const statusClass = getStatusClass(result);
+                    row.append($('<td>').html(`<span class="badge ${statusClass}">${result}</span>`));
+                    
+                    $('#result-table-body').append(row);
+                }
+            }
+            
+            // 显示结果
+            $('#search-results-content').removeClass('d-none');
+            
+            // 显示可视化图表
+            if (allResults.length > 0) {
+                displayVisualization(allResults);
+            }
+        }
+        
+        // 获取状态对应的CSS类
+        function getStatusClass(status) {
+            switch(status) {
+                case '推荐': return 'status-recommend';
+                case '有活性': return 'status-active';
+                case '不确定': return 'status-uncertain';
+                case '不推荐': return 'status-not-recommend';
+                default: return 'status-unknown';
+            }
+        }
+        
+        // 获取状态说明
+        function getStatusDescription(status) {
+            switch(status) {
+                case '推荐': return '该药物对目标微生物有良好的抗菌活性，推荐使用';
+                case '有活性': return '该药物对目标微生物有抗菌活性，但可能不是首选';
+                case '不确定': return '抗菌活性数据有限或存在争议，使用时需谨慎';
+                case '不推荐': return '该药物对目标微生物抗菌活性较差或耐药率高，不推荐使用';
+                default: return '数据未知';
+            }
+        }
+        
+        // 显示数据可视化 - 已移除图表绘制功能
+        function displayVisualization(results) {
+            // 简化版实现，不再包含图表绘制
+            // 显示可视化容器
+            $('#visualization-container').removeClass('d-none');
+        }
+        
+        // 清空结果
+        function clearResults() {
+            $('#search-input').val('');
+            $('#search-results-content').addClass('d-none');
+            $('#visualization-container').addClass('d-none');
+            $('#no-results').addClass('d-none');
+            $('#loading-indicator').addClass('d-none');
+            $('#search-results').addClass('d-none');
+        }
+    </script>
+</body>
+</html>
